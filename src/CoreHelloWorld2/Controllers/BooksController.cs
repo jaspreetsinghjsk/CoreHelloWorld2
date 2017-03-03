@@ -11,16 +11,18 @@ using Microsoft.AspNetCore.Http;
 using System.IO;
 using Microsoft.Net.Http.Headers;
 using System.Text;
+using Microsoft.AspNetCore.Hosting;
 
 namespace CoreHelloWorld2.Controllers
 {
     public class BooksController : Controller
     {
         private readonly ApplicationDbContext _context;
-
-        public BooksController(ApplicationDbContext context)
+        private readonly IHostingEnvironment _env;
+        public BooksController(ApplicationDbContext context, IHostingEnvironment env)
         {
-            _context = context;    
+            _context = context;
+            _env = env;
         }
 
         // GET: Books
@@ -51,16 +53,15 @@ namespace CoreHelloWorld2.Controllers
         {
             return View();
         }
-
-        public async Task<FileContentResult> GetBookImage(int bookImageId)
+        [Route("books/GetBookImage/{bookImageId:int}")]
+        public async Task<IActionResult> GetBookImage(int bookImageId)
         {
             var bookImage = await _context.BookImages.SingleOrDefaultAsync(m => m.BookImageId == bookImageId);
-            //if (bookImage == null)
-            //{
-            //    return NotFound();
-            //}
-            FileContentResult result = new FileContentResult(bookImage.Image, MediaTypeHeaderValue.Parse("UTF-8"));
-            return result;
+            if (bookImage == null)
+            {
+                return NotFound();
+            }
+            return File(bookImage.Image, "image/jpg");
         }
         // POST: Books/Create
         // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
@@ -71,16 +72,17 @@ namespace CoreHelloWorld2.Controllers
         {
             if (imageFile != null && ModelState.IsValid)
             {
-                string fileContent;
-                using (var reader = new StreamReader(imageFile.OpenReadStream(),true))
+                var stream = imageFile.OpenReadStream();
+                using (var memoryStream = new MemoryStream())
                 {
-                    fileContent = await reader.ReadToEndAsync();
+                    await stream.CopyToAsync(memoryStream);
                     book.CoverImage = new BookImage();
-                    book.CoverImage.Image = reader.CurrentEncoding.GetBytes(fileContent);
-                    book.CoverImage.ImageContentType = reader.CurrentEncoding.WebName;
+                    book.CoverImage.Image = memoryStream.ToArray();
+                    book.CoverImage.ImageContentType = "UTF-8";
                 }
                 _context.Add(book);
                 await _context.SaveChangesAsync();
+                //await imageFile.CopyToAsync(new FileStream(Path.Combine(_env.ContentRootPath, "222.jpg"), FileMode.Create));
                 return RedirectToAction("Index");
             }
             

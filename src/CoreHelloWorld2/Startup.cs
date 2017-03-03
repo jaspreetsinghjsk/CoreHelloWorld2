@@ -52,6 +52,7 @@ namespace CoreHelloWorld2
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
 
+            //services.
             services.AddMvc();
 
             // Add application services.
